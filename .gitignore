@@ -1,2 +1,12 @@
-.next/
+# Dependencies and build output
 node_modules/
+.next/
+out/
+
+# Secrets: never commit these
+.env
+.env*.local
+
+# Local tooling
+*.tsbuildinfo
+.vercel
