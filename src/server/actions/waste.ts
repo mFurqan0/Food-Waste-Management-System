@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import type { ActionState } from "@/lib/action-state";
 import { MEAL_LABEL } from "@/lib/constants";
 import { flattenErrors, wasteSchema } from "@/lib/validators";
+import { requireRole } from "@/server/session";
 import { deleteWaste, upsertWaste } from "@/server/services/waste";
 
 function refresh() {
@@ -12,8 +13,9 @@ function refresh() {
   revalidatePath("/admin/analytics");
 }
 
-// TODO (Phase 5): verify the session has role ADMIN before writing.
 export async function saveWasteAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  await requireRole("ADMIN");
+
   const parsed = wasteSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
     return { ok: false, message: "Please fix the highlighted fields.", errors: flattenErrors(parsed.error) };
@@ -30,6 +32,8 @@ export async function saveWasteAction(_prev: ActionState, formData: FormData): P
 }
 
 export async function deleteWasteAction(formData: FormData): Promise<void> {
+  await requireRole("ADMIN");
+
   const id = String(formData.get("id") ?? "");
   if (!id) return;
   await deleteWaste(id);
