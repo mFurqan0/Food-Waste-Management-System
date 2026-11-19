@@ -63,18 +63,23 @@ async function main() {
       });
     }
   }
-
-  // Today's attendance: ~60% going, ~20% skipping, rest haven't responded yet
-  for (const [si, student] of students.entries()) {
-    for (const [mi, meal] of MEALS.entries()) {
-      const roll = (si * 7 + mi * 13) % 10;
-      if (roll >= 8) continue; // pending
-      const status = roll < 6 ? AttendanceStatus.GOING : AttendanceStatus.SKIPPING;
-      await prisma.mealAttendance.upsert({
-        where: { userId_date_mealType: { userId: student.id, date: isoToDate(today), mealType: meal } },
-        update: { status },
-        create: { userId: student.id, date: isoToDate(today), mealType: meal, status },
-      });
+  
+// Past 10 days + Today's attendance (creates diverse streaks and leaderboard points)
+for (const [si, student] of students.entries()) {
+    const activeStreakDays = (si * 3) % 11; // gives students streaks from 0 up to 10 days
+    for (let back = 10; back >= 0; back--) {
+      if (back > activeStreakDays && back !== 0) continue;
+      const iso = addDaysIso(today, -back);
+      for (const [mi, meal] of MEALS.entries()) {
+        const roll = (si * 7 + mi * 13 + back * 5) % 10;
+        if (back === 0 && roll >= 8) continue; // leave some pending today
+        const status = roll < 5 ? AttendanceStatus.GOING : AttendanceStatus.SKIPPING;
+        await prisma.mealAttendance.upsert({
+          where: { userId_date_mealType: { userId: student.id, date: isoToDate(iso), mealType: meal } },
+          update: { status },
+          create: { userId: student.id, date: isoToDate(iso), mealType: meal, status },
+        });
+      }
     }
   }
 
