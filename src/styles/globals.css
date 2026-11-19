@@ -1,0 +1,38 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Design tokens. Values are HSL triplets so Tailwind can add opacity. */
+:root {
+  --background: 250 60% 97%;
+  --surface: 0 0% 100%;
+  --border: 250 20% 90%;
+  --foreground: 245 30% 16%;
+  --muted: 245 14% 52%;
+  --primary: 262 83% 58%;
+  --success: 152 60% 42%;
+  --danger: 348 83% 55%;
+  --warning: 38 92% 55%;
+  --info: 217 91% 60%;
+  color-scheme: light;
+}
+
+.dark {
+  --background: 245 35% 10%;
+  --surface: 245 30% 15%;
+  --border: 245 25% 22%;
+  --foreground: 250 40% 96%;
+  --muted: 245 15% 65%;
+  --primary: 262 90% 72%;
+  --success: 152 60% 50%;
+  --danger: 348 85% 65%;
+  --warning: 38 95% 60%;
+  --info: 217 95% 70%;
+  color-scheme: dark;
+}
+
+@layer base {
+  body {
+    @apply bg-background text-foreground antialiased;
+  }
+}

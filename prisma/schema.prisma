@@ -1,0 +1,125 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------- Enums ----------
+
+enum Role {
+  STUDENT
+  ADMIN
+}
+
+enum MealType {
+  BREAKFAST
+  LUNCH
+  DINNER
+}
+
+enum AttendanceStatus {
+  GOING     // "Going to Eat"
+  SKIPPING
+}
+
+// ---------- Users ----------
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         Role     @default(STUDENT)
+  roomNo       String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  attendances  MealAttendance[]
+  impacts      ImpactLog[]
+  wasteLogs    WasteLog[]       @relation("WasteLoggedBy")
+  menusCreated DailyMenu[]      @relation("MenuCreatedBy")
+
+  @@index([role])
+}
+
+// ---------- Mess configuration ----------
+
+// Per-meal rules. Exactly one row per MealType, managed by admins.
+model MealSetting {
+  mealType      MealType @id
+  startsAt      String   // "HH:mm" in MESS_TIMEZONE, e.g. "07:30"
+  endsAt        String   // "HH:mm"
+  cutoffMinutes Int      @default(60) // attendance locks this many minutes before startsAt
+  updatedAt     DateTime @updatedAt
+}
+
+// ---------- Menus ----------
+
+// One menu per day per meal, e.g. items: ["Paratha", "Omelette", "Tea"].
+model DailyMenu {
+  id          String   @id @default(cuid())
+  date        DateTime @db.Date
+  mealType    MealType
+  items       String[]
+  notes       String?
+  createdById String?
+  createdBy   User?    @relation("MenuCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([date, mealType])
+  @@index([date])
+}
+
+// ---------- Attendance (drives headcount predictions) ----------
+
+model MealAttendance {
+  id        String           @id @default(cuid())
+  userId    String
+  date      DateTime         @db.Date
+  mealType  MealType
+  status    AttendanceStatus
+  updatedAt DateTime         @updatedAt
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date, mealType])
+  @@index([date, mealType, status])
+}
+
+// ---------- Food waste (admin logs, in kg) ----------
+
+model WasteLog {
+  id         String   @id @default(cuid())
+  date       DateTime @db.Date
+  mealType   MealType
+  wasteKg    Decimal  @db.Decimal(8, 2)
+  preparedKg Decimal? @db.Decimal(8, 2) // optional, enables waste % analytics
+  notes      String?
+  loggedById String?
+  loggedBy   User?    @relation("WasteLoggedBy", fields: [loggedById], references: [id], onDelete: SetNull)
+  createdAt  DateTime @default(now())
+
+  @@unique([date, mealType])
+  @@index([date])
+}
+
+// ---------- Personal impact, streaks, leaderboard ----------
+
+// Written when a meal's cutoff passes. A student who skipped a meal
+// earns impact points and an estimated kg of food saved.
+model ImpactLog {
+  id        String   @id @default(cuid())
+  userId    String
+  date      DateTime @db.Date
+  mealType  MealType
+  points    Int      @default(0)
+  kgSaved   Decimal  @db.Decimal(6, 3) @default(0)
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date, mealType])
+  @@index([date])
+}
